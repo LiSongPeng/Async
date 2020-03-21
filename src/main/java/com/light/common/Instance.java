@@ -14,9 +14,9 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Instance {
     /**
-     * full qualified name of a instance of a remote call interface
+     * class object of a instance of a remote call interface
      *
      * @return
      */
-    String fullQualifiedName();
+    Class instanceClass();
 }

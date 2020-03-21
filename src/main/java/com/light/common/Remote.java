@@ -1,9 +1,6 @@
 package com.light.common;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.*;
 
 /**
  * Indicate which interfaces are used for remote call
@@ -14,8 +11,9 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Remote {
     /**
-     * identifier for a remote call interface.
-     * {@code }server and
+     * identifier for a remote call interface
+     * used to identify remote call interface through network
+     *
      * @return
      */
     int identifier();
