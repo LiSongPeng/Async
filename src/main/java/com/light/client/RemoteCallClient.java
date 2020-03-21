@@ -164,7 +164,7 @@ public final class RemoteCallClient {
         public void setRemoteServer(String remoteServer) {
             if (!Pattern.matches(Constant.IPV4_REGEX, remoteServer) &&
                     !Pattern.matches(Constant.IPV6_REGEX, remoteServer)) {
-                throw new RuntimeException(String.format("remote server %s is neither a Ipv4 or a Ipv6 address", remoteServer));
+                throw new RuntimeException(String.format("remote server %s is neither a Ipv4 nor a Ipv6 address", remoteServer));
             }
             this.remoteServer = remoteServer;
         }
