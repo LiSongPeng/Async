@@ -3,12 +3,11 @@ package com.light.client;
 /**
  * define callback of a sync remote call
  *
- * @param <T> type of a remote call result
  * @author lihb
  */
-public class SyncCallBack<T> extends AbstractCallBack<T> {
+public class SyncCallBack extends AbstractCallBack {
     @Override
-    public void onReceive(T result) {
+    public void onReceive(Object result) {
         super.onReceive(result);
     }
 

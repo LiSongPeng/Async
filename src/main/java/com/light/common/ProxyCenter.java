@@ -117,7 +117,7 @@ public final class ProxyCenter {
      */
     public void addManagedRemoteCallInterfaces(List<Class<?>> remoteCallInterfaces) {
         Objects.requireNonNull(remoteCallInterfaces);
-        for (Class remoteCallInterface : remoteCallInterfaces) {
+        for (Class<?> remoteCallInterface : remoteCallInterfaces) {
             addManagedRemoteCallInterface(remoteCallInterface);
         }
     }

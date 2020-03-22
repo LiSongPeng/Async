@@ -2,7 +2,9 @@ package com.light.client;
 
 import com.light.common.Constant;
 import com.light.common.ProxyCenter;
+import com.light.common.Request;
 
+import javax.security.auth.callback.Callback;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,7 +48,7 @@ public final class RemoteCallClient {
      * key -> message id
      * value -> callback
      */
-    private Map<Long, CallBack<?>> messageMap = new ConcurrentHashMap<>();
+    private Map<Long, CallBack> messageMap = new ConcurrentHashMap<>();
 
     private RemoteCallClient() {
     }
@@ -81,6 +83,16 @@ public final class RemoteCallClient {
 
     public ProxyCenter getProxyCenter() {
         return proxyCenter;
+    }
+
+    /**
+     * sending a remote call request to {@code RemoteCallServer} side
+     *
+     * @param request  request
+     * @param callback called when a remote call finished
+     */
+    public void sendRequest(Request request, CallBack callback) {
+
     }
 
     /**
