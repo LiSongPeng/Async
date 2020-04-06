@@ -1,5 +1,7 @@
 package com.light.common;
 
+import com.light.client.CallBack;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -19,5 +21,5 @@ public @interface Async {
      *
      * @return
      */
-    Class<?> callBack();
+    Class<CallBack> callBack();
 }

@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.LinkedList;
@@ -39,25 +40,6 @@ public class ProxyInvocationHandler implements InvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        if (method.isAnnotationPresent(Sync.class)) {
-            return invokeSync(proxy, method, args);
-        }
-        if (method.isAnnotationPresent(Async.class)) {
-            return invokeAsync(proxy, method, args);
-        }
-        return null;
-    }
-
-    /**
-     * process {@code Sync} situation
-     *
-     * @param proxy
-     * @param method
-     * @param args
-     * @return
-     * @throws Throwable
-     */
-    private Object invokeSync(Object proxy, Method method, Object[] args) throws Throwable {
         Class<?> remoteCallInterfaceClass = proxy.getClass().getSuperclass();
         if (!remoteCallInterfaceClass.isAnnotationPresent(Remote.class)) {
             throw new RuntimeException(String.format("interface %s is not annotated by Remote", remoteCallInterfaceClass.getName()));
@@ -66,19 +48,32 @@ public class ProxyInvocationHandler implements InvocationHandler {
         if (remote.identifier() <= 0) {
             throw new RuntimeException(String.format("identifier of Remote annotation assigned on %s should be positive", remoteCallInterfaceClass.getName()));
         }
-        Sync sync = method.getAnnotation(Sync.class);
         Request request = generateRequest(remote.identifier(), method.getName(), args);
+        if (method.isAnnotationPresent(Sync.class)) {
+            return invokeSync(request);
+        }
+        if (method.isAnnotationPresent(Async.class)) {
+            return invokeAsync(method, request);
+        }
+        return null;
+    }
+
+    /**
+     * process {@code Sync} situation
+     *
+     * @param request
+     * @return
+     * @throws Throwable
+     */
+    private Object invokeSync(Request request) throws Throwable {
         CallBack callBack = new SyncCallBack();
         client.sendRequest(request, callBack);
         synchronized (callBack) {
-            if (sync.timeOut() > 0) {
-                callBack.wait(sync.timeOut());
-            } else {
-                try {
-                    callBack.wait();
-                } catch (Exception e) {
-                    logger.error("", e);
-                }
+            try {
+                callBack.wait();
+            } catch (InterruptedException e) {
+                logger.error("", e);
+                Thread.currentThread().interrupt();
             }
         }
         return callBack.getReturnValue();
@@ -87,14 +82,25 @@ public class ProxyInvocationHandler implements InvocationHandler {
     /**
      * process {@code Async} situation
      *
-     * @param proxy
      * @param method
-     * @param args
+     * @param request
      * @return
      * @throws Throwable
      */
-    private Object invokeAsync(Object proxy, Method method, Object[] args) throws Throwable {
-        return "";
+    private Object invokeAsync(Method method, Request request) throws Throwable {
+        Async async = method.getAnnotation(Async.class);
+        Class<CallBack> callBack = async.callBack();
+        if (callBack == null) {
+            throw new RuntimeException("CallBack class that assigned in Async annotation is null");
+        }
+        Constructor<CallBack> callBackConstructor;
+        try {
+            callBackConstructor = callBack.getConstructor();
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException("CallBack class do not have a default constructor");
+        }
+        client.sendRequest(request, callBackConstructor.newInstance());
+        return null;
     }
 
     /**

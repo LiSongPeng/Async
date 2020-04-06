@@ -13,11 +13,4 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Sync {
-    /**
-     * wait time
-     * 0 stand for wait until a remote call returned
-     *
-     * @return
-     */
-    long timeOut() default 0;
 }

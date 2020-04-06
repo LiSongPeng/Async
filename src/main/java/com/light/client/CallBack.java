@@ -13,8 +13,6 @@ public interface CallBack {
      */
     void onReceive(Object result);
 
-    void onTimeout();
-
     /**
      * obtain the result of a remote call
      */
