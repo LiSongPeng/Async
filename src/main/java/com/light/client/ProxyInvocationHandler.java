@@ -63,9 +63,8 @@ public class ProxyInvocationHandler implements InvocationHandler {
      *
      * @param request
      * @return
-     * @throws Throwable
      */
-    private Object invokeSync(Request request) throws Throwable {
+    private Object invokeSync(Request request) {
         CallBack callBack = new SyncCallBack();
         client.sendRequest(request, callBack);
         synchronized (callBack) {

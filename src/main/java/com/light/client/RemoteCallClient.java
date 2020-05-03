@@ -3,8 +3,16 @@ package com.light.client;
 import com.light.common.Constant;
 import com.light.common.ProxyCenter;
 import com.light.common.Request;
+import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.*;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 
-import javax.security.auth.callback.Callback;
+import java.io.ByteArrayInputStream;
+import java.io.ObjectInputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,6 +57,14 @@ public final class RemoteCallClient {
      * value -> callback
      */
     private Map<Long, CallBack> messageMap = new ConcurrentHashMap<>();
+    /**
+     * channel future
+     */
+    private ChannelFuture connectFuture;
+    /**
+     * channel handler context
+     */
+    ChannelHandlerContext channelHandlerContext;
 
     private RemoteCallClient() {
     }
@@ -92,7 +108,94 @@ public final class RemoteCallClient {
      * @param callback called when a remote call finished
      */
     public void sendRequest(Request request, CallBack callback) {
+        channelHandlerContext.writeAndFlush(request);
+        messageMap.put(request.getMsgId(), callback);
+    }
 
+    public void stop() {
+        try {
+            connectFuture.channel().close().sync();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private void init() {
+        proxyCenter.scanFor(autoScanPackage);
+        Bootstrap bootstrap = new Bootstrap();
+        connectFuture = bootstrap.group(new NioEventLoopGroup(workerGroupThreadNum)).channel(NioSocketChannel.class).handler(new ChannelInitializer<SocketChannel>() {
+            @Override
+            protected void initChannel(SocketChannel ch) throws Exception {
+                ChannelPipeline pipeline = ch.pipeline();
+                pipeline.addLast(new ChannelInboundHandlerAdapter() {
+                    @Override
+                    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+                        channelHandlerContext = ctx;
+                    }
+
+                    @Override
+                    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                        if (!(msg instanceof ByteBuf)) {
+                            return;
+                        }
+                        ByteBuf byteBuf = (ByteBuf) msg;
+                        byteBuf.markReaderIndex();
+                        long msgId = 0;
+                        if (byteBuf.readableBytes() > 8) {
+                            msgId = byteBuf.readLong();
+                        }
+                        int msgBodyLength = 0;
+                        if (byteBuf.readableBytes() > 8) {
+                            msgBodyLength = byteBuf.readInt();
+                        }
+                        if (byteBuf.readableBytes() >= msgBodyLength) {
+                            byte[] bodyBytes = new byte[msgBodyLength];
+                            byteBuf.readBytes(bodyBytes);
+                            CallBack callBack = messageMap.get(msgId);
+                            ObjectInputStream inputStream = new ObjectInputStream(new ByteArrayInputStream(bodyBytes));
+                            callBack.onReceive(inputStream.readObject());
+                            messageMap.remove(msgId);
+                            ctx.fireChannelReadComplete();
+                        } else {
+                            byteBuf.resetReaderIndex();
+                        }
+                    }
+                }).addLast(new ChannelOutboundHandlerAdapter() {
+                    @Override
+                    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+                        if (!(msg instanceof Request)) {
+                            return;
+                        }
+                        Request request = (Request) msg;
+                        int totalLength = 0;
+                        int remoteCallInterfaceIdLength = 8;
+                        totalLength += remoteCallInterfaceIdLength;
+                        int methodNameLength = 4;
+                        totalLength += methodNameLength;
+                        totalLength += request.getMethodName().length();
+                        int argHeadLength = 4;
+                        for (byte[] arg : request.getArgs()) {
+                            totalLength += argHeadLength;
+                            totalLength += arg.length;
+                        }
+                        ByteBuf buffer = Unpooled.buffer(totalLength);
+                        buffer.writeLong(request.getRemoteCallInterfaceId());
+                        buffer.writeInt(request.getMethodName().length());
+                        buffer.writeBytes(request.getMethodName().getBytes());
+                        for (byte[] arg : request.getArgs()) {
+                            buffer.writeInt(arg.length);
+                            buffer.writeBytes(arg);
+                        }
+                        ctx.writeAndFlush(buffer);
+                    }
+                });
+            }
+        }).connect(remoteServer, port);
+    }
+
+    public void start() throws InterruptedException {
+        init();
+        connectFuture.sync();
     }
 
     /**

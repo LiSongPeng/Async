@@ -8,11 +8,9 @@ package com.light.client;
 public class SyncCallBack extends AbstractCallBack {
     @Override
     public void onReceive(Object result) {
-        super.onReceive(result);
-    }
-
-    @Override
-    public void onTimeout() {
-
+        synchronized (this) {
+            super.onReceive(result);
+            this.notifyAll();
+        }
     }
 }
